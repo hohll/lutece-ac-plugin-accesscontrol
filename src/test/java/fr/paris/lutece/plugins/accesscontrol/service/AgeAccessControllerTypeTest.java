@@ -91,6 +91,43 @@ public class AgeAccessControllerTypeTest extends LuteceTestCase
     /**
      * The front office form of the age controller is displayed: its label is given to the label macro, which requires it
      */
+    /**
+     * The minimum and maximum ages are included: with min 18 and max 25, a user of 18 or of 25 passes, 17 and 26 do not
+     */
+    @Test
+    public void testValidateBoundaryAges( )
+    {
+        AgeAccessControllerConfig config = new AgeAccessControllerConfig( );
+        config.setAgeMin( 18 );
+        config.setAgeMax( 25 );
+        config.setErrorMessage( ERROR_MSG );
+        _dao.insert( config );
+
+        AccessController accessController = new AccessController( );
+        accessController.setId( config.getIdAccessController( ) );
+
+        AgeAccessControllerType controller = CDI.current( ).select( AgeAccessControllerType.class )
+                .select( NamedLiteral.of( AgeAccessControllerType.BEAN_NAME ) ).get( );
+        try
+        {
+            assertNull( controller.validate( birthRequest( LocalDate.now( ).minusYears( 18 ).minusDays( 1 ) ), accessController ) );
+            assertNull( controller.validate( birthRequest( LocalDate.now( ).minusYears( 25 ) ), accessController ) );
+            assertEquals( ERROR_MSG, controller.validate( birthRequest( LocalDate.now( ).minusYears( 18 ).plusDays( 1 ) ), accessController ) );
+            assertEquals( ERROR_MSG, controller.validate( birthRequest( LocalDate.now( ).minusYears( 26 ) ), accessController ) );
+        }
+        finally
+        {
+            controller.deleteConfig( accessController.getId( ) );
+        }
+    }
+
+    private static MockHttpServletRequest birthRequest( LocalDate birthDate )
+    {
+        MockHttpServletRequest request = new MockHttpServletRequest( );
+        request.addParameter( "birth_date", birthDate.toString( ) );
+        return request;
+    }
+
     @Test
     public void testControllerFormIsDisplayed( )
     {

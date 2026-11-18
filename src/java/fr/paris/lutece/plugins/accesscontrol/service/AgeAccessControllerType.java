@@ -155,12 +155,12 @@ public class AgeAccessControllerType extends AbstractPersistentAccessControllerT
 
         int currentAge = Period.between( birthDate, LocalDate.now( ) ).getYears( );
 
-        if ( config.getAgeMin( ) > 0 && currentAge <= config.getAgeMin( ) )
+        if ( config.getAgeMin( ) > 0 && currentAge < config.getAgeMin( ) )
         {
             return config.getErrorMessage( );
         }
 
-        if ( config.getAgeMax( ) > 0 && currentAge >= config.getAgeMax( ) )
+        if ( config.getAgeMax( ) > 0 && currentAge > config.getAgeMax( ) )
         {
             return config.getErrorMessage( );
         }
