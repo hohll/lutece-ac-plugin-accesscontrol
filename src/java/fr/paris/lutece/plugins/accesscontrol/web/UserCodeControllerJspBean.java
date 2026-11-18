@@ -36,6 +36,9 @@ package fr.paris.lutece.plugins.accesscontrol.web;
 import java.io.IOException;
 import java.sql.Date;
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 
@@ -44,12 +47,14 @@ import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.servlet.http.HttpServletRequest;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 
 import fr.paris.lutece.plugins.accesscontrol.business.UserCodeControllerData;
 import fr.paris.lutece.plugins.accesscontrol.business.UserCodeControllerDataHome;
 import fr.paris.lutece.plugins.accesscontrol.service.IAccessControlService;
 import fr.paris.lutece.portal.business.user.AdminUser;
+import fr.paris.lutece.portal.service.i18n.I18nService;
 import fr.paris.lutece.portal.service.upload.MultipartItem;
 import fr.paris.lutece.portal.service.util.AppLogService;
 import fr.paris.lutece.portal.util.mvc.admin.annotations.Controller;
@@ -72,6 +77,9 @@ public class UserCodeControllerJspBean extends AbstractManageAccessControlJspBea
 
     // Messages
     private static final String PROPERTY_PAGE_TITLE_MANAGE_ACCESSCONTROLS = "accesscontrol.manage_usercodes.pageTitle";
+
+    private static final String MESSAGE_ERROR_NO_FILE = "accesscontrol.manage_usercode.error.noFile";
+    private static final String MESSAGE_ERROR_INVALID_LINE = "accesscontrol.manage_usercode.error.invalidLine";
 
     // View
     private static final String VIEW_MANAGE_USER_CODE = "manageUserCodeView";
@@ -124,29 +132,81 @@ public class UserCodeControllerJspBean extends AbstractManageAccessControlJspBea
         {
             MultipartHttpServletRequest multipartRequest = (MultipartHttpServletRequest) request;
             MultipartItem fileItem = multipartRequest.getFile( PARAMETER_FILE );
+            if ( fileItem == null || fileItem.getSize( ) == 0 )
+            {
+                addError( MESSAGE_ERROR_NO_FILE, getLocale( ) );
+                return redirectView( request, VIEW_MANAGE_USER_CODE );
+            }
+
+            // Every line is checked before any is written: a file with a wrong line imports nothing
+            List<UserCodeControllerData> listData = new ArrayList<>( );
             try ( Scanner scanner = new Scanner( fileItem.getInputStream( ) ) )
             {
+                int nLine = 0;
                 while ( scanner.hasNextLine( ) )
                 {
                     String strLine = scanner.nextLine( );
-                    String [ ] strFields = strLine.split( ";" );
-
-                    UserCodeControllerData data = new UserCodeControllerData( );
-                    data.setIdAccessControl( accessControlId );
-                    data.setUser( strFields [0] );
-                    data.setCode( strFields [1] );
-                    data.setValidityDate( Date.valueOf( LocalDate.parse( strFields [2] ) ) );
-
-                    UserCodeControllerDataHome.remove( data.getUser( ), data.getIdAccessControl( ) );
-                    UserCodeControllerDataHome.create( data );
+                    nLine++;
+                    if ( StringUtils.isBlank( strLine ) )
+                    {
+                        continue;
+                    }
+                    UserCodeControllerData data = parseLine( strLine, accessControlId );
+                    if ( data == null )
+                    {
+                        addError( I18nService.getLocalizedString( MESSAGE_ERROR_INVALID_LINE, new Object [ ] {
+                                String.valueOf( nLine )
+                        }, getLocale( ) ) );
+                        return redirectView( request, VIEW_MANAGE_USER_CODE );
+                    }
+                    listData.add( data );
                 }
             }
             catch( IOException e )
             {
-                AppLogService.error( "Error reading file" );
+                AppLogService.error( "Error reading file", e );
+                addError( MESSAGE_ERROR_NO_FILE, getLocale( ) );
+                return redirectView( request, VIEW_MANAGE_USER_CODE );
+            }
+
+            for ( UserCodeControllerData data : listData )
+            {
+                UserCodeControllerDataHome.remove( data.getUser( ), data.getIdAccessControl( ) );
+                UserCodeControllerDataHome.create( data );
             }
         }
 
         return redirectView( request, VIEW_MANAGE_USER_CODE );
+    }
+
+    /**
+     * Reads a line user;code;yyyy-MM-dd of the imported file
+     * 
+     * @param strLine
+     *            the line
+     * @param accessControlId
+     *            the id of the access control
+     * @return the data, or null if the line is not in the expected format
+     */
+    static UserCodeControllerData parseLine( String strLine, int accessControlId )
+    {
+        String [ ] strFields = strLine.split( ";" );
+        if ( strFields.length < 3 || StringUtils.isAnyBlank( strFields [0], strFields [1], strFields [2] ) )
+        {
+            return null;
+        }
+        UserCodeControllerData data = new UserCodeControllerData( );
+        data.setIdAccessControl( accessControlId );
+        data.setUser( strFields [0].trim( ) );
+        data.setCode( strFields [1].trim( ) );
+        try
+        {
+            data.setValidityDate( Date.valueOf( LocalDate.parse( strFields [2].trim( ) ) ) );
+        }
+        catch( DateTimeParseException e )
+        {
+            return null;
+        }
+        return data;
     }
 }
