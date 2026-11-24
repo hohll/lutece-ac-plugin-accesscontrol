@@ -663,7 +663,8 @@ public class AccessControlJspBean extends AbstractManageAccessControlJspBean
      * @param request
      * @return
      */
-    @Action( value = ACTION_CREATE_CONTROLLER, securityTokenDisabled = true )
+    // Posted from the modification page, whose token is issued under the name of its view
+    @Action( value = ACTION_CREATE_CONTROLLER, securityTokenAction = VIEW_MODIFY_ACCESSCONTROL )
     public String doCreateController( HttpServletRequest request )
     {
         int nId = Integer.parseInt( request.getParameter( PARAMETER_ID_ACCESSCONTROL ) );
@@ -693,7 +694,8 @@ public class AccessControlJspBean extends AbstractManageAccessControlJspBean
      * @param request
      * @return
      */
-    @Action( value = ACTION_CHANGE_CONDITON, securityTokenDisabled = true  )
+    // Posted from the modification page, whose token is issued under the name of its view
+    @Action( value = ACTION_CHANGE_CONDITON, securityTokenAction = VIEW_MODIFY_ACCESSCONTROL )
     public String doChangeControllerCondition( HttpServletRequest request )
     {
         int nIdController = Integer.parseInt( request.getParameter( PARAMETER_ID_CONTROLLER ) );
@@ -714,7 +716,8 @@ public class AccessControlJspBean extends AbstractManageAccessControlJspBean
      * @param request
      * @return
      */
-    @Action( value = ACTION_CHANGE_ORDER, securityTokenDisabled = true )
+    // Posted from the modification page, whose token is issued under the name of its view
+    @Action( value = ACTION_CHANGE_ORDER, securityTokenAction = VIEW_MODIFY_ACCESSCONTROL )
     public String doChangeControllerOrder( HttpServletRequest request )
     {
         int nId = Integer.parseInt( request.getParameter( PARAMETER_ID_ACCESSCONTROL ) );
